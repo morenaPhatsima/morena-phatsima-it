@@ -97,7 +97,9 @@ function initEcaresCalculator() {
   const statusEl = document.getElementById("calcStatus");
 
   const sanitize = (el) => {
-    const val = Math.max(0, parseInt(el?.value || "0", 10) || 0);
+    const max = el && el.max !== "" ? Number(el.max) : Infinity;
+    const upperBound = Number.isFinite(max) ? max : Infinity;
+    const val = Math.min(upperBound, Math.max(0, parseInt(el?.value || "0", 10) || 0));
     if (el && String(val) !== el.value) el.value = String(val);
     return val;
   };
