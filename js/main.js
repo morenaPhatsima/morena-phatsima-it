@@ -5,6 +5,7 @@
 document.addEventListener("DOMContentLoaded", () => {
   initCopyrightYear();
   initLiveBusinessStatus();
+  setInterval(initLiveBusinessStatus, 60000);
   initMobileNavigation();
   initServiceQuickSelect();
   initEnquiryForm();
@@ -52,16 +53,16 @@ function initLiveBusinessStatus() {
 
     if (isWeekday && currentMinutes >= 9 * 60 && currentMinutes < 16 * 60 + 30) {
       isOpen = true;
-      statusMessage = "Available Now (Open until 16:30) • Potchefstroom";
+      statusMessage = "Available Now (Open until 16:30) \u2022 Potchefstroom";
     } else if (isSaturday && currentMinutes >= 8 * 60 && currentMinutes < 13 * 60) {
       isOpen = true;
-      statusMessage = "Available Now (Open until 13:00) • Potchefstroom";
+      statusMessage = "Available Now (Open until 13:00) \u2022 Potchefstroom";
     } else if (isWeekday && currentMinutes < 9 * 60) {
-      statusMessage = "Opens Today at 09:00 • Serving Potchefstroom";
+      statusMessage = "Opens Today at 09:00 \u2022 Serving Potchefstroom";
     } else if (isSaturday && currentMinutes < 8 * 60) {
-      statusMessage = "Opens Today at 08:00 • Serving Potchefstroom";
+      statusMessage = "Opens Today at 08:00 \u2022 Serving Potchefstroom";
     } else {
-      statusMessage = "Currently Closed (Replies Next Business Day) • Potchefstroom";
+      statusMessage = "Currently Closed (Replies Next Business Day) \u2022 Potchefstroom";
     }
 
     pill.classList.toggle("is-open", isOpen);
@@ -91,12 +92,10 @@ function initMobileNavigation() {
     setMenuState(!isExpanded);
   });
 
-  // Close menu when any navigation link is tapped
   primaryNav.querySelectorAll("a").forEach((link) => {
     link.addEventListener("click", () => setMenuState(false));
   });
 
-  // Close menu on Escape key
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && primaryNav.classList.contains("is-open")) {
       setMenuState(false);
@@ -137,13 +136,14 @@ function initServiceQuickSelect() {
 }
 
 /**
- * 5. Client-Side Validation & WhatsApp Enquiry Submission
+ * 5. Client-Side Validation & Resilient WhatsApp / Email Enquiry Submission
  */
 function initEnquiryForm() {
   const form = document.getElementById("enquiryForm");
   if (!form) return;
 
   const whatsappNumber = "27661262587";
+  const emailAddress = "phatsima16@gmail.com";
 
   const fields = {
     name: {
@@ -166,7 +166,6 @@ function initEnquiryForm() {
     }
   };
 
-  // Clear field errors live as the user types
   Object.values(fields).forEach(({ input, error }) => {
     if (!input || !error) return;
     input.addEventListener("input", () => {
@@ -211,7 +210,7 @@ function initEnquiryForm() {
     const supportType = document.getElementById("supportType")?.value || "Not Specified";
     const enquiryDetails = fields.details.input.value.trim();
 
-    const formattedMessage = [
+    const whatsappMessage = [
       "Hi Morena Phatsima IT,",
       "",
       `*Name:* ${clientName}`,
@@ -221,7 +220,64 @@ function initEnquiryForm() {
       `*Details:* ${enquiryDetails}`
     ].join("\n");
 
-    const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(formattedMessage)}`;
-    window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+    const plainMessage = [
+      "Hi Morena Phatsima IT,",
+      "",
+      `Name: ${clientName}`,
+      `Area: ${clientArea}`,
+      `Service: ${serviceChoice}`,
+      `Assistance Type: ${supportType}`,
+      `Details: ${enquiryDetails}`
+    ].join("\n");
+
+    const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(whatsappMessage)}`;
+    const emailSubject = encodeURIComponent(`${serviceChoice} Enquiry - ${clientName} (${clientArea})`);
+    const emailBody = encodeURIComponent(plainMessage);
+    const mailtoUrl = `mailto:${emailAddress}?subject=${emailSubject}&body=${emailBody}`;
+
+    const popup = window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+    renderEnquiryFallback(form, {
+      whatsappUrl,
+      mailtoUrl,
+      plainMessage,
+      popupBlocked: !popup
+    });
   });
+}
+
+function renderEnquiryFallback(form, { whatsappUrl, mailtoUrl, plainMessage, popupBlocked }) {
+  let panel = document.getElementById("enquiryFallback");
+  if (!panel) {
+    panel = document.createElement("div");
+    panel.id = "enquiryFallback";
+    panel.className = "enquiry-fallback";
+    panel.setAttribute("role", "status");
+    panel.setAttribute("aria-live", "polite");
+    form.appendChild(panel);
+  }
+
+  const heading = popupBlocked
+    ? "Your browser blocked the new tab — send your formatted enquiry directly below:"
+    : "Enquiry formatted. If WhatsApp did not open, use any direct option below:";
+
+  panel.innerHTML = `
+    <p class="fallback-title">${heading}</p>
+    <div class="fallback-actions">
+      <a href="${whatsappUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-whatsapp">Open WhatsApp</a>
+      <a href="${mailtoUrl}" class="btn btn-outline">Send via Email</a>
+      <button type="button" class="btn btn-outline" id="copyEnquiryBtn">Copy Message</button>
+    </div>
+  `;
+
+  const copyBtn = document.getElementById("copyEnquiryBtn");
+  if (copyBtn) {
+    copyBtn.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(plainMessage);
+        copyBtn.textContent = "Copied to Clipboard";
+      } catch {
+        copyBtn.textContent = "Select & Copy Above";
+      }
+    });
+  }
 }
